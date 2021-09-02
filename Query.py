@@ -137,15 +137,12 @@ class PerformedQuery:
             if topComment['snippet']['authorChannelId']['value'] == self.target.channelId:
                 db[db['count']] = topComment
                 db['count'] += 1
-                print(convertCommentTextToStr(topComment))
-                print(topComment['id'])
-                if topComment['id'] == 'UgzrK1Hi_Q7Fea0pdtJ4AaABAg': # list comm 'UgwSrnCSFi1guLmpS354AaABAg'
+                if topComment['id'] == 'UgwSrnCSFi1guLmpS354AaABAg':
                     self.requestParameters.resetPageToken()
 
 
     async def showCommentsFromDatabase(self, params: List):
         numberOfSteps = int(params[0])
-        sizeOfDatabase = db['count']
         for i in range(numberOfSteps):
             comment = db[i]
             await self.sendMessageOnCurrentChannel(convertCommentTextToStr(comment))
