@@ -1,3 +1,6 @@
 .idea
 replit.py
 test.py
+pyproject.toml
+poetry.lock
+__pycache__/
