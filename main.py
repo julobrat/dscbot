@@ -7,9 +7,7 @@ from keep_alive import keep_alive
 from datetime import datetime
 import pytz
 from replit import db
-
-# TOKENS ###################################################
-
+import help
 
 #TODO: zrób funkcję do wyświetlanie komentarzy z danego przedziału, w tym szczególny przypadek dla 1 komentarza np. 5. od końca
 
@@ -23,30 +21,8 @@ class RequestParameters:
         self.maxResults = maxResults
 
 
-def fixTimeFromYoutubeComment(timeString: str) -> str:
-    timeString = timeString.replace('T', ' ').replace('Z', '')
-    date, time = timeString.split(' ')
-    y, m, d = date.split('-')
-    h, min, s = time.split(':')
-
-    utc = pytz.utc
-    utcTime = utc.localize(datetime(int(y), int(m), int(d), int(h), int(min), int(s)))
-
-    warsawTz = pytz.timezone('Europe/Warsaw')
-    formatOfTime = '%d-%m-%Y %H:%M:%S'
-    return utcTime.astimezone(warsawTz)
-
-
 def getHelp() -> str:
-    helpMessage = \
-        f"""```fix
-Available commands:
-!greet - greets
-!turn on/off - switches whether bot should show latest comment from Monsieur on the channel it was turned on
-!comment (n) - shows n latest comments from Monsieur, n equals 1 by default, don't go crazy with it
-!help - sends an e-mail with calling for help to Elon Musk
-!skyrim - allows you to give Todd more money```"""
-    return helpMessage
+    return help.helpMessage
 
 
 def tryToFindComment(channelId, response):
@@ -61,8 +37,6 @@ def tryToFindComment(channelId, response):
 def makeStrFromComments(comments: List) -> str:
     msg = str()
     for comment in comments:
-        # msg += (f"```\n{comment['snippet']['textDisplay']}```"
-        #         f"*~{comment['snippet']['authorDisplayName']} at {fixTimeFromYoutubeComment(comment['snippet']['publishedAt'])}*")
         msg += f"```{comment['snippet']['textDisplay']}```"
     return msg
 
