@@ -11,6 +11,7 @@ skyrimLinkMessage = 'Here you go pretty sir'
 
 class Constants:
     COMMAND_PROMPT = '!'
-    NUMBER_OF_COMMENTS_IN_ONE_MSG = 10
+    NUMBER_OF_COMMENTS_IN_ONE_MSG = 1
+    MAX_LENGTH_OF_MESSAGE_ON_DISCORD = 2000
     LAST_MONSIEUR_COMMENT_ID = 'UgwSrnCSFi1guLmpS354AaABAg'
     DAY_850_LOGBOOK_ID = 'UgxiLioO9beoRnddc4J4AaABAg'

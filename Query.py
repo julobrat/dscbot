@@ -16,12 +16,29 @@ def getHelp() -> str:
 def makeStrFromComments(comments: List) -> str:
     msg = str()
     for comment in comments:
-        msg += convertCommentTextToStr(comment)
+        msg += convertCommentToDiscordMessage(comment)
     return msg
 
 
-def convertCommentTextToStr(comment) -> str:
-    return f"```{comment['snippet']['textDisplay']}```"
+def convertCommentToDiscordMessage(comment) -> str:
+    text = commentToStr(comment)
+    msg = strToDiscordMessage(text)
+    return f"```{msg}```"
+
+
+def strToDiscordMessage(text: str) -> str:
+    return f"```{text}```"
+
+
+def commentToStr(comment) -> str:
+    return comment['snippet']['textDisplay']
+
+
+def sliceCommentIntoStrings(comment: str) -> List[str]:
+    slices = comment.split('. ')
+    for oneSlice in slices:
+        oneSlice += '.'
+    return slices
 
 
 def getCommandParametersWithSeparator(message: str, sep: str = ' ') -> List[str]:
@@ -50,6 +67,22 @@ def isNumberOfParametersBetween(parameters: List, minimal: int = 0, maximal: int
     if minimal <= numberOfParameters <= maximal:
         return True
     return False
+
+
+def revertIndicesInList(data: List) -> List:
+    indicesToRevert = len(data) // 2
+    for i in range(indicesToRevert):
+        otherIndex = indicesToRevert - 1 - i
+        tmp = data[i]
+        data[i] = data[otherIndex]
+        data[otherIndex] = tmp
+    return data
+
+
+def addToDatabaseFrom(data: List):
+    for comment in data:
+        db[dbCountAsString()] = comment
+        db['count'] += 1
 
 
 class PerformedQuery:
@@ -146,6 +179,11 @@ class PerformedQuery:
         self.setRequestParameters(part, textFormat, maxResults)
 
     def downloadAllCommentsFromTargetToDatabase(self, youtubeClient):
+        allData = self.addCommentsToList(youtubeClient)
+        addToDatabaseFrom(allData)
+        self.setNewestCommentAsOneToStopOn()
+
+    def addCommentsToList(self, youtubeClient) -> List:
         allData = []
         while True:
             response = self.getResponseFrom(youtubeClient)
@@ -155,8 +193,7 @@ class PerformedQuery:
                 allData.insert(0, comment)
             if not self.requestParameters.pageToken:
                 break
-        addToDatabaseFrom(allData)
-        self.setNewestCommentAsOneToStopOn()
+        return allData
 
     def getResponseFrom(self, youtubeClient):
         return youtubeClient.commentThreads().list(videoId=self.target.videoId, part=self.requestParameters.part,
@@ -170,12 +207,22 @@ class PerformedQuery:
             topComment = commentThread['snippet']['topLevelComment']
             if isCommentFromDeletedChannel(topComment):
                 continue
-            if topComment['snippet']['authorChannelId']['value'] == self.target.channelId:
+            if self.isTargetedChannelAuthorOf(topComment):
                 data.append(topComment)
-                if topComment['id'] == self.target.commentToStopOnId:
+                if self.isFinalCommentEqualTo(topComment):
                     self.requestParameters.resetPageToken()
                     break
         return data
+
+    def isTargetedChannelAuthorOf(self, comment) -> bool:
+        if comment['snippet']['authorChannelId']['value'] == self.target.channelId:
+            return True
+        return False
+
+    def isFinalCommentEqualTo(self, comment) -> bool:
+        if comment['id'] == self.target.commentToStopOnId:
+            return True
+        return False
 
     async def showCommentsFromDatabase(self, params: List):
         offset = 0
@@ -203,39 +250,32 @@ class PerformedQuery:
             step = -1
 
         if -1 < beginning_inclusive < db['count'] and -1 <= end_exclusive <= db['count']:
-            await self.fun(beginning_inclusive, end_exclusive, step)
+            await self.sendCommentsFromChosenSection(beginning_inclusive, end_exclusive, step)
             await self.sendMessageOnCurrentChannel('Here you go')
             return
         await self.sendMessageOnCurrentChannel('There are no comments like these')
 
-    async def fun(self, beginning_inclusive: int, end_exclusive: int, step: int):
+    async def sendCommentsFromChosenSection(self, beginning_inclusive: int, end_exclusive: int, step: int):
         msg = ''
         for i in range(beginning_inclusive, end_exclusive, step):
             comment = db[str(i)]
-            msg += convertCommentTextToStr(comment)
-            if i == end_exclusive - 1 or i == end_exclusive + 1:
-                break
-            if not i % sourceOfData.Constants.NUMBER_OF_COMMENTS_IN_ONE_MSG:
-                await self.sendMessageOnCurrentChannel(msg)
-                msg = ''
-        await self.sendMessageOnCurrentChannel(msg)
+            commentAsStr = comment['snippet']['textDisplay']
+            if len(commentAsStr) >= sourceOfData.Constants.MAX_LENGTH_OF_MESSAGE_ON_DISCORD:
+                if len(msg) > 0:
+                    await self.sendMessageOnCurrentChannel(msg)
+                    msg = ''
+                slices = sliceCommentIntoStrings(commentAsStr)
+                for oneSlice in slices:
+                    await self.sendMessageOnCurrentChannel(strToDiscordMessage(oneSlice))
+            else:
+                msg += strToDiscordMessage(commentAsStr)
+                if i == end_exclusive - 1 or i == end_exclusive + 1:
+                    await self.sendMessageOnCurrentChannel(msg)
+                    break
+                if not i % sourceOfData.Constants.NUMBER_OF_COMMENTS_IN_ONE_MSG:
+                    await self.sendMessageOnCurrentChannel(msg)
+                    msg = ''
 
     def setNewestCommentAsOneToStopOn(self):
         indexOfLastComment = str(db['count'] - 1)
         self.target.commentToStopOnId = db[indexOfLastComment]['snippet']['authorChannelId']['value']
-
-
-def revertIndicesInList(data: List) -> List:
-    indicesToRevert = len(data) // 2
-    for i in range(indicesToRevert):
-        otherIndex = indicesToRevert - 1 - i
-        tmp = data[i]
-        data[i] = data[otherIndex]
-        data[otherIndex] = tmp
-    return data
-
-
-def addToDatabaseFrom(data: List):
-    for comment in data:
-        db[dbCountAsString()] = comment
-        db['count'] += 1
